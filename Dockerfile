@@ -29,53 +29,13 @@ RUN npm ci
 # Build the application
 RUN npm run build
 
-# Create nginx.conf if it doesn't exist in the repo
-RUN if [ ! -f nginx.conf ]; then \
-      cat > nginx.conf << 'EOF' \
-server {
-    listen 80;
-    server_name localhost;
-    root /usr/share/nginx/html;
-    index index.html;
-
-    # Gzip compression
-    gzip on;
-    gzip_vary on;
-    gzip_min_length 1024;
-    gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/xml+rss application/javascript application/json;
-
-    # Security headers
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-
-    # Handle React Router (SPA)
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    # Cache static assets
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-
-    # Don't cache HTML
-    location ~* \.html$ {
-        expires -1;
-        add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0";
-    }
-}
-EOF
-    fi
-
 # Production stage with Nginx
 FROM nginx:alpine
 
 # Copy built files from builder
 COPY --from=builder /app/repo/dist /usr/share/nginx/html
 
-# Copy nginx configuration from builder (will use created one if repo doesn't have it)
+# Copy nginx configuration from builder
 COPY --from=builder /app/repo/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port 80
