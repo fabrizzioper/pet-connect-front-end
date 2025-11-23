@@ -5,6 +5,7 @@
 
 import { useState } from 'react';
 import type { FormEvent } from 'react';
+import { PawPrint } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -39,7 +40,9 @@ export const LoginPage = () => {
     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-8">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-1 text-center">
-          <div className="mx-auto mb-4 text-6xl">🐾</div>
+          <div className="mx-auto mb-4">
+            <PawPrint className="h-16 w-16 text-primary mx-auto" />
+          </div>
           <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             Iniciar Sesión
           </CardTitle>

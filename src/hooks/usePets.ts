@@ -28,9 +28,11 @@ export const usePets = (): UsePetsReturn => {
     setError(null);
     try {
       const myPets = await api.getMyPets();
-      setPets(myPets);
+      // Ensure we always have an array
+      setPets(Array.isArray(myPets) ? myPets : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar mascotas');
+      setPets([]); // Reset to empty array on error
     } finally {
       setIsLoading(false);
     }
@@ -41,9 +43,11 @@ export const usePets = (): UsePetsReturn => {
     setError(null);
     try {
       const response = await api.createPet(data);
-      if (response.data) {
-        setPets((prev) => [...prev, response.data as Pet]);
-        return response.data;
+      // El backend retorna { message, pet }
+      const newPet = response.pet;
+      if (newPet) {
+        setPets((prev) => [...prev, newPet]);
+        return newPet;
       }
       throw new Error('No se recibió la mascota creada');
     } catch (err) {

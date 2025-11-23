@@ -82,6 +82,11 @@ export interface UpdateUserRequest {
   profilePicture?: string;
 }
 
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
 // Pet types
 export interface Pet {
   _id: string;

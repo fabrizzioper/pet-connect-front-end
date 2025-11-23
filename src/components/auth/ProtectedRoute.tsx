@@ -12,7 +12,23 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  let authContext;
+  try {
+    authContext = useAuth();
+  } catch (error) {
+    // Durante hot reload, el contexto puede no estar disponible temporalmente
+    // Mostrar estado de carga hasta que el contexto esté disponible
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          <p className="text-muted-foreground">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const { isAuthenticated, isLoading } = authContext;
 
   if (isLoading) {
     return (

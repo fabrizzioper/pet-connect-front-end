@@ -32,6 +32,8 @@ export const usePosts = (): UsePostsReturn => {
     setError(null);
     try {
       const response = await api.getFeed(pageNum, 10);
+      // El backend ahora incluye currentUserId en la respuesta
+      // Esto ayuda a identificar qué posts tienen like del usuario actual
       if (pageNum === 1) {
         setPosts(response.posts);
       } else {
@@ -51,9 +53,18 @@ export const usePosts = (): UsePostsReturn => {
     setError(null);
     try {
       const response = await api.createPost(data);
-      if (response.data) {
-        setPosts((prev) => [response.data as Post, ...prev]);
-        return response.data;
+      // El backend retorna { message, post }
+      const newPost = response.post;
+      if (newPost) {
+        // Asegurar que el post tenga los campos necesarios
+        const postWithDefaults = {
+          ...newPost,
+          isLiked: false,
+          likesCount: 0,
+          commentsCount: 0,
+        };
+        setPosts((prev) => [postWithDefaults, ...prev]);
+        return postWithDefaults;
       }
       throw new Error('No se recibió la publicación creada');
     } catch (err) {
@@ -66,26 +77,72 @@ export const usePosts = (): UsePostsReturn => {
   }, []);
 
   const toggleLike = useCallback(async (postId: string): Promise<void> => {
+    console.log('🟢 toggleLike llamado - postId:', postId);
+    console.log('🟢 Posts actuales:', posts.length, 'posts');
+    
     try {
-      await api.toggleLike(postId);
-      setPosts((prev) =>
-        prev.map((post) => {
-          if (post._id === postId) {
-            const isLiked = post.isLiked ?? false;
-            const currentLikes = post.likesCount ?? 0;
-            return {
-              ...post,
-              isLiked: !isLiked,
-              likesCount: isLiked ? currentLikes - 1 : currentLikes + 1,
-            };
-          }
-          return post;
-        })
-      );
+      // Optimistic update: actualizar inmediatamente la UI si el post existe
+      setPosts((prev) => {
+        const currentPost = prev.find(p => p._id === postId);
+        if (currentPost) {
+          console.log('🟢 Post encontrado, actualizando optimísticamente');
+          const currentIsLiked = currentPost.isLiked ?? false;
+          const currentLikesCount = currentPost.likesCount ?? 0;
+          const newIsLiked = !currentIsLiked;
+          const newLikesCount = newIsLiked ? currentLikesCount + 1 : Math.max(0, currentLikesCount - 1);
+          
+          return prev.map((post) => {
+            if (post._id === postId) {
+              return {
+                ...post,
+                isLiked: newIsLiked,
+                likesCount: newLikesCount,
+              };
+            }
+            return post;
+          });
+        } else {
+          console.log('🟢 Post no encontrado en el array, continuando con la petición');
+        }
+        return prev;
+      });
+
+      // SIEMPRE hacer la petición PUT al servidor, incluso si el post no está en el array
+      console.log('🟢 Llamando a api.toggleLike con postId:', postId);
+      const response = await api.toggleLike(postId);
+      console.log('🟢 Respuesta del servidor:', response);
+      
+      // Después de dar like, SIEMPRE recargar el feed completo para obtener todos los posts
+      // con el identificador isLiked actualizado desde el backend
+      console.log('🟢 Recargando feed con page:', page);
+      await fetchFeed(page);
+      console.log('🟢 Feed recargado exitosamente');
     } catch (err) {
+      console.error('🟢 ERROR en toggleLike:', err);
+      // Revertir el cambio optimista en caso de error
+      setPosts((prev) => {
+        const currentPost = prev.find(p => p._id === postId);
+        if (currentPost) {
+          const currentIsLiked = currentPost.isLiked ?? false;
+          const currentLikesCount = currentPost.likesCount ?? 0;
+          console.log('🟢 Revirtiendo cambio optimista');
+          return prev.map((post) => {
+            if (post._id === postId) {
+              return {
+                ...post,
+                isLiked: !currentIsLiked,
+                likesCount: currentIsLiked ? currentLikesCount - 1 : currentLikesCount + 1,
+              };
+            }
+            return post;
+          });
+        }
+        return prev;
+      });
       setError(err instanceof Error ? err.message : 'Error al dar like');
+      throw err;
     }
-  }, []);
+  }, [page, fetchFeed]);
 
   const reportPost = useCallback(async (postId: string, reason: string): Promise<void> => {
     try {

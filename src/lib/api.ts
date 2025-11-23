@@ -6,7 +6,6 @@
 import { env } from '@/config/env';
 import type {
   ApiResponse,
-  PaginatedResponse,
   PaginationResponse,
   LoginRequest,
   RegisterRequest,
@@ -14,6 +13,7 @@ import type {
   VerifyTokenResponse,
   User,
   UpdateUserRequest,
+  ChangePasswordRequest,
   Pet,
   CreatePetRequest,
   UpdatePetRequest,
@@ -69,20 +69,31 @@ class ApiService {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
+    console.log('🔵 request - URL:', `${this.baseURL}${endpoint}`);
+    console.log('🔵 request - Method:', options.method || 'GET');
+    console.log('🔵 request - Headers:', headers);
+    console.log('🔵 request - Body:', options.body);
+
     const response = await fetch(`${this.baseURL}${endpoint}`, {
       ...options,
       headers,
     });
+
+    console.log('🔵 response - Status:', response.status, response.statusText);
+    console.log('🔵 response - OK:', response.ok);
 
     if (!response.ok) {
       const error: ApiError = await response.json().catch(() => ({
         statusCode: response.status,
         message: response.statusText,
       }));
+      console.error('🔵 response - Error:', error);
       throw new Error(error.message || `HTTP error! status: ${response.status}`);
     }
 
-    return response.json();
+    const data = await response.json();
+    console.log('🔵 response - Data:', data);
+    return data;
   }
 
   private getToken(): string | null {
@@ -151,21 +162,41 @@ class ApiService {
   }
 
   async unfollowUser(userId: string): Promise<ApiResponse<User>> {
-    return this.request<ApiResponse<User>>(`/users/${userId}/unfollow`, {
-      method: 'POST',
+    return this.request<ApiResponse<User>>(`/users/${userId}/follow`, {
+      method: 'DELETE',
     });
   }
 
+  async changePassword(data: ChangePasswordRequest): Promise<ApiResponse<void>> {
+    return this.request<ApiResponse<void>>('/users/me/password', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getFollowers(userId: string, page = 1, limit = 10): Promise<{ followers: User[]; pagination: PaginationResponse }> {
+    return this.request<{ followers: User[]; pagination: PaginationResponse }>(
+      `/users/${userId}/followers?page=${page}&limit=${limit}`
+    );
+  }
+
+  async getFollowing(userId: string, page = 1, limit = 10): Promise<{ following: User[]; pagination: PaginationResponse }> {
+    return this.request<{ following: User[]; pagination: PaginationResponse }>(
+      `/users/${userId}/following?page=${page}&limit=${limit}`
+    );
+  }
+
   // Pet endpoints
-  async createPet(data: CreatePetRequest): Promise<ApiResponse<Pet>> {
-    return this.request<ApiResponse<Pet>>('/pets', {
+  async createPet(data: CreatePetRequest): Promise<{ message: string; pet: Pet }> {
+    return this.request<{ message: string; pet: Pet }>('/pets', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
   async getMyPets(): Promise<Pet[]> {
-    return this.request<Pet[]>('/pets/my-pets');
+    const response = await this.request<{ pets: Pet[] }>('/pets/my-pets');
+    return response.pets || [];
   }
 
   async getPetById(petId: string): Promise<Pet> {
@@ -186,16 +217,28 @@ class ApiService {
   }
 
   // Post endpoints
-  async createPost(data: CreatePostRequest): Promise<ApiResponse<Post>> {
-    return this.request<ApiResponse<Post>>('/posts', {
+  async createPost(data: CreatePostRequest): Promise<{ message: string; post: Post }> {
+    return this.request<{ message: string; post: Post }>('/posts', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async getFeed(page = 1, limit = 10): Promise<{ posts: Post[]; pagination: PaginationResponse }> {
-    return this.request<{ posts: Post[]; pagination: PaginationResponse }>(
+  async getFeed(page = 1, limit = 10): Promise<{ posts: Post[]; pagination: PaginationResponse; currentUserId?: string | null }> {
+    return this.request<{ posts: Post[]; pagination: PaginationResponse; currentUserId?: string | null }>(
       `/posts/feed?page=${page}&limit=${limit}`
+    );
+  }
+
+  async getFollowingFeed(page = 1, limit = 10): Promise<{ posts: Post[]; pagination: PaginationResponse }> {
+    return this.request<{ posts: Post[]; pagination: PaginationResponse }>(
+      `/posts/feed/following?page=${page}&limit=${limit}`
+    );
+  }
+
+  async getUserPosts(userId: string, page = 1, limit = 10): Promise<{ posts: Post[]; pagination: PaginationResponse }> {
+    return this.request<{ posts: Post[]; pagination: PaginationResponse }>(
+      `/posts/user/${userId}?page=${page}&limit=${limit}`
     );
   }
 
@@ -219,10 +262,17 @@ class ApiService {
     });
   }
 
-  async toggleLike(postId: string): Promise<ApiResponse<Post>> {
-    return this.request<ApiResponse<Post>>(`/posts/${postId}/like`, {
-      method: 'POST',
+  async toggleLike(postId: string): Promise<{ message: string; liked: boolean; likesCount: number }> {
+    console.log('🔵 API toggleLike - postId:', postId);
+    console.log('🔵 URL:', `${this.baseURL}/posts/${postId}/like`);
+    console.log('🔵 Token:', this.getToken() ? 'Presente' : 'Ausente');
+    
+    const response = await this.request<{ message: string; liked: boolean; likesCount: number }>(`/posts/${postId}/like`, {
+      method: 'PUT',
     });
+    
+    console.log('🔵 Respuesta recibida:', response);
+    return response;
   }
 
   async reportPost(postId: string, reason: string): Promise<void> {
@@ -236,11 +286,18 @@ class ApiService {
   async createComment(
     postId: string,
     data: CreateCommentRequest
-  ): Promise<ApiResponse<Comment>> {
-    return this.request<ApiResponse<Comment>>(`/posts/${postId}/comments`, {
+  ): Promise<{ message: string; comment: Comment }> {
+    return this.request<{ message: string; comment: Comment }>(`/posts/${postId}/comments`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  }
+
+  async getComments(postId: string, page = 1, limit = 10): Promise<{ comments: Comment[]; pagination: PaginationResponse }> {
+    const response = await this.request<{ comments: Comment[]; pagination: PaginationResponse }>(
+      `/posts/${postId}/comments?page=${page}&limit=${limit}`
+    );
+    return response;
   }
 
   async updateComment(
@@ -307,8 +364,8 @@ class ApiService {
     return this.request<AdminStatistics>('/admin/statistics');
   }
 
-  async getReports(page = 1, limit = 10): Promise<PaginatedResponse<Report>> {
-    return this.request<PaginatedResponse<Report>>(
+  async getReports(page = 1, limit = 10): Promise<{ reports: Report[]; pagination: PaginationResponse }> {
+    return this.request<{ reports: Report[]; pagination: PaginationResponse }>(
       `/admin/reports?page=${page}&limit=${limit}`
     );
   }
@@ -338,15 +395,59 @@ class ApiService {
 
   // Search endpoints
   async search(query: SearchRequest): Promise<SearchResponse> {
-    const params = new URLSearchParams({
-      q: query.query,
-      page: String(query.page || 1),
-      limit: String(query.limit || 10),
-    });
-    if (query.type) {
-      params.append('type', query.type);
+    // El backend no tiene un endpoint /search general, solo /search/users y /search/posts
+    // Hacemos búsquedas separadas y combinamos los resultados
+    const type = query.type || 'all';
+    const page = query.page || 1;
+    const limit = query.limit || 10;
+    
+    const results: SearchResponse = {
+      users: [],
+      posts: [],
+      pets: [],
+      pagination: {
+        page,
+        limit,
+        total: 0,
+        totalPages: 0,
+      },
+    };
+
+    if (type === 'all' || type === 'users') {
+      try {
+        const usersResponse = await this.searchUsers(query.query, page, limit);
+        results.users = usersResponse.users || [];
+      } catch (err) {
+        // Ignorar errores en búsquedas individuales
+      }
     }
-    return this.request<SearchResponse>(`/search?${params.toString()}`);
+
+    if (type === 'all' || type === 'posts') {
+      try {
+        const postsResponse = await this.searchPosts(query.query, page, limit);
+        results.posts = postsResponse.posts || [];
+      } catch (err) {
+        // Ignorar errores en búsquedas individuales
+      }
+    }
+
+    // Calcular totales
+    results.pagination.total = results.users.length + results.posts.length + results.pets.length;
+    results.pagination.totalPages = Math.ceil(results.pagination.total / limit);
+
+    return results;
+  }
+
+  async searchUsers(query: string, page = 1, limit = 10): Promise<{ users: User[]; pagination: PaginationResponse }> {
+    return this.request<{ users: User[]; pagination: PaginationResponse }>(
+      `/search/users?q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`
+    );
+  }
+
+  async searchPosts(query: string, page = 1, limit = 10): Promise<{ posts: Post[]; pagination: PaginationResponse }> {
+    return this.request<{ posts: Post[]; pagination: PaginationResponse }>(
+      `/search/posts?q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`
+    );
   }
 }
 
