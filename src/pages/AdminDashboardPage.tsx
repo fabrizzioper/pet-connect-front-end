@@ -47,9 +47,6 @@ export const AdminDashboardPage = () => {
           <Link to="/admin/users">
             <Button variant="outline">Gestionar Usuarios</Button>
           </Link>
-          <Link to="/admin/reports">
-            <Button variant="outline">Ver Reportes</Button>
-          </Link>
         </div>
       </div>
 
@@ -110,24 +107,7 @@ export const AdminDashboardPage = () => {
       )}
 
       {statistics && (
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Reportes Pendientes</CardTitle>
-              <CardDescription>Reportes que requieren atención</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold text-destructive">
-                {statistics.reportsPending}
-              </div>
-              <Link to="/admin/reports">
-                <Button className="mt-4" variant="outline">
-                  Ver Reportes
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-
+        <div className="grid gap-4 md:grid-cols-1">
           <Card>
             <CardHeader>
               <CardTitle>Publicaciones por Categoría</CardTitle>

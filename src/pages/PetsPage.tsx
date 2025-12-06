@@ -76,20 +76,15 @@ export const PetsPage = () => {
             <Card key={pet._id}>
               <CardHeader>
                 <div className="flex items-center space-x-4">
-                  {pet.photos && pet.photos.length > 0 ? (
-                    <Avatar className="h-16 w-16">
-                      <AvatarImage src={pet.photos[0]} alt={pet.name} />
-                      <AvatarFallback>
-                        {pet.name?.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  ) : (
-                    <Avatar className="h-16 w-16">
-                      <AvatarFallback>
-                        {pet.name?.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
+                  <Avatar className="h-16 w-16">
+                    <AvatarImage 
+                      src={pet.profilePicture || (pet.photos && pet.photos.length > 0 ? pet.photos[0] : undefined)} 
+                      alt={pet.name} 
+                    />
+                    <AvatarFallback>
+                      {pet.name?.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
                   <div>
                     <CardTitle>{pet.name}</CardTitle>
                     <CardDescription>

@@ -370,6 +370,41 @@ class ApiService {
     );
   }
 
+  async createUserAsAdmin(data: {
+    username: string;
+    email: string;
+    password: string;
+    fullName?: string;
+    role?: 'USER' | 'ADMIN';
+  }): Promise<ApiResponse<User>> {
+    return this.request<ApiResponse<User>>('/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateUserAsAdmin(
+    userId: string,
+    data: {
+      fullName?: string;
+      email?: string;
+      bio?: string;
+      profilePicture?: string;
+      role?: 'USER' | 'ADMIN';
+    }
+  ): Promise<ApiResponse<User>> {
+    return this.request<ApiResponse<User>>(`/admin/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteUserAsAdmin(userId: string): Promise<void> {
+    return this.request<void>(`/admin/users/${userId}`, {
+      method: 'DELETE',
+    });
+  }
+
   async blockUser(
     userId: string,
     data: BlockUserRequest

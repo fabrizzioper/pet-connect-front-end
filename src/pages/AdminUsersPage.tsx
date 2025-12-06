@@ -1,6 +1,6 @@
 /**
  * Admin Users Page
- * Manage users (block, unblock, view)
+ * Manage users (create, edit, delete, view)
  */
 
 import { useEffect, useState } from 'react';
@@ -8,32 +8,107 @@ import { useUsers } from '@/hooks/useUsers';
 import { useAdmin } from '@/hooks/useAdmin';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { User } from '@/types/api';
 
 export const AdminUsersPage = () => {
   const { users, isLoading, error, fetchUsers } = useUsers();
-  const { blockUser, isLoading: isBlocking } = useAdmin();
+  const { createUser, updateUser, deleteUser, isLoading: isAdminLoading } = useAdmin();
   const [searchQuery, setSearchQuery] = useState('');
-  const [blockingUserId, setBlockingUserId] = useState<string | null>(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+
+  // Form states
+  const [formData, setFormData] = useState({
+    username: '',
+    email: '',
+    password: '',
+    fullName: '',
+    role: 'USER' as 'USER' | 'ADMIN',
+    bio: '',
+    profilePicture: '',
+  });
 
   useEffect(() => {
     fetchUsers(1);
   }, [fetchUsers]);
 
-  const handleBlock = async (user: User, blocked: boolean): Promise<void> => {
-    setBlockingUserId(user._id);
+  const resetForm = () => {
+    setFormData({
+      username: '',
+      email: '',
+      password: '',
+      fullName: '',
+      role: 'USER',
+      bio: '',
+      profilePicture: '',
+    });
+    setEditingUser(null);
+    setShowCreateForm(false);
+  };
+
+  const handleCreate = async (e: React.FormEvent): Promise<void> => {
+    e.preventDefault();
     try {
-      await blockUser(user._id, {
-        blocked,
-        reason: blocked ? 'Usuario bloqueado por administrador' : 'Usuario desbloqueado',
+      await createUser({
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+        fullName: formData.fullName || undefined,
+        role: formData.role,
       });
+      resetForm();
+      await fetchUsers(1);
+    } catch (err) {
+      // Error ya está manejado en el hook
+    }
+  };
+
+  const handleEdit = (user: User): void => {
+    setEditingUser(user);
+    setFormData({
+      username: user.username,
+      email: user.email,
+      password: '',
+      fullName: user.fullName || '',
+      role: user.role,
+      bio: user.bio || '',
+      profilePicture: user.profilePicture || '',
+    });
+    setShowCreateForm(true);
+  };
+
+  const handleUpdate = async (e: React.FormEvent): Promise<void> => {
+    e.preventDefault();
+    if (!editingUser) return;
+    try {
+      await updateUser(editingUser._id, {
+        fullName: formData.fullName || undefined,
+        email: formData.email,
+        bio: formData.bio || undefined,
+        profilePicture: formData.profilePicture || undefined,
+        role: formData.role,
+      });
+      resetForm();
+      await fetchUsers(1);
+    } catch (err) {
+      // Error ya está manejado en el hook
+    }
+  };
+
+  const handleDelete = async (userId: string): Promise<void> => {
+    if (!confirm('¿Estás seguro de que deseas eliminar este usuario?')) return;
+    setDeletingUserId(userId);
+    try {
+      await deleteUser(userId);
       await fetchUsers(1);
     } catch (err) {
       // Error ya está manejado en el hook
     } finally {
-      setBlockingUserId(null);
+      setDeletingUserId(null);
     }
   };
 
@@ -58,10 +133,120 @@ export const AdminUsersPage = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Gestionar Usuarios</h1>
-        <Button onClick={() => fetchUsers(1)} variant="outline">
-          Actualizar
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => fetchUsers(1)} variant="outline">
+            Actualizar
+          </Button>
+          <Button onClick={() => {
+            resetForm();
+            setShowCreateForm(true);
+          }}>
+            + Crear Usuario
+          </Button>
+        </div>
       </div>
+
+      {showCreateForm && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{editingUser ? 'Editar Usuario' : 'Crear Usuario'}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={editingUser ? handleUpdate : handleCreate} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="username">Username *</Label>
+                  <Input
+                    id="username"
+                    value={formData.username}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                    required
+                    disabled={!!editingUser}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+
+              {!editingUser && (
+                <div>
+                  <Label htmlFor="password">Contraseña *</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    required
+                    minLength={8}
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="fullName">Nombre Completo</Label>
+                  <Input
+                    id="fullName"
+                    value={formData.fullName}
+                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="role">Rol *</Label>
+                  <select
+                    id="role"
+                    value={formData.role}
+                    onChange={(e) => setFormData({ ...formData, role: e.target.value as 'USER' | 'ADMIN' })}
+                    className="w-full p-2 border rounded-md"
+                    required
+                  >
+                    <option value="USER">Usuario</option>
+                    <option value="ADMIN">Administrador</option>
+                  </select>
+                </div>
+              </div>
+
+              {editingUser && (
+                <>
+                  <div>
+                    <Label htmlFor="bio">Biografía</Label>
+                    <Input
+                      id="bio"
+                      value={formData.bio}
+                      onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="profilePicture">Foto de Perfil (URL)</Label>
+                    <Input
+                      id="profilePicture"
+                      value={formData.profilePicture}
+                      onChange={(e) => setFormData({ ...formData, profilePicture: e.target.value })}
+                    />
+                  </div>
+                </>
+              )}
+
+              <div className="flex gap-2">
+                <Button type="submit" disabled={isAdminLoading}>
+                  {isAdminLoading ? 'Guardando...' : editingUser ? 'Actualizar' : 'Crear'}
+                </Button>
+                <Button type="button" variant="outline" onClick={resetForm}>
+                  Cancelar
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -95,7 +280,7 @@ export const AdminUsersPage = () => {
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-semibold">{user.fullName}</p>
+                    <p className="font-semibold">{user.fullName || user.username}</p>
                     <p className="text-sm text-muted-foreground">@{user.username}</p>
                     <p className="text-sm text-muted-foreground">{user.email}</p>
                     <div className="flex items-center gap-2 mt-1">
@@ -111,31 +296,28 @@ export const AdminUsersPage = () => {
                           ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
                           : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                       }`}>
-                        {user.isActive ? 'Activo' : 'Bloqueado'}
+                        {user.isActive ? 'Activo' : 'Inactivo'}
                       </span>
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {user.isActive ? (
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleBlock(user, true)}
-                      disabled={isBlocking && blockingUserId === user._id}
-                    >
-                      {isBlocking && blockingUserId === user._id ? 'Bloqueando...' : 'Bloquear'}
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleBlock(user, false)}
-                      disabled={isBlocking && blockingUserId === user._id}
-                    >
-                      {isBlocking && blockingUserId === user._id ? 'Desbloqueando...' : 'Desbloquear'}
-                    </Button>
-                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEdit(user)}
+                    disabled={isAdminLoading}
+                  >
+                    Editar
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleDelete(user._id)}
+                    disabled={isAdminLoading && deletingUserId === user._id}
+                  >
+                    {isAdminLoading && deletingUserId === user._id ? 'Eliminando...' : 'Eliminar'}
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -151,4 +333,3 @@ export const AdminUsersPage = () => {
     </div>
   );
 };
-

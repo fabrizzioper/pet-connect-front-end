@@ -14,6 +14,21 @@ interface UseAdminReturn {
   error: string | null;
   fetchStatistics: () => Promise<void>;
   fetchReports: (page?: number) => Promise<void>;
+  createUser: (data: {
+    username: string;
+    email: string;
+    password: string;
+    fullName?: string;
+    role?: 'USER' | 'ADMIN';
+  }) => Promise<void>;
+  updateUser: (userId: string, data: {
+    fullName?: string;
+    email?: string;
+    bio?: string;
+    profilePicture?: string;
+    role?: 'USER' | 'ADMIN';
+  }) => Promise<void>;
+  deleteUser: (userId: string) => Promise<void>;
   blockUser: (userId: string, data: BlockUserRequest) => Promise<void>;
   deletePost: (postId: string, reason: string) => Promise<void>;
   deleteComment: (commentId: string) => Promise<void>;
@@ -52,6 +67,60 @@ export const useAdmin = (): UseAdminReturn => {
       setPagination('pagination' in response ? response.pagination : (response as { pagination: PaginationResponse }).pagination);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar reportes');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const createUser = useCallback(async (data: {
+    username: string;
+    email: string;
+    password: string;
+    fullName?: string;
+    role?: 'USER' | 'ADMIN';
+  }): Promise<void> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await api.createUserAsAdmin(data);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error al crear usuario';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const updateUser = useCallback(async (userId: string, data: {
+    fullName?: string;
+    email?: string;
+    bio?: string;
+    profilePicture?: string;
+    role?: 'USER' | 'ADMIN';
+  }): Promise<void> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await api.updateUserAsAdmin(userId, data);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error al actualizar usuario';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const deleteUser = useCallback(async (userId: string): Promise<void> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await api.deleteUserAsAdmin(userId);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error al eliminar usuario';
+      setError(errorMessage);
+      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -110,6 +179,9 @@ export const useAdmin = (): UseAdminReturn => {
     error,
     fetchStatistics,
     fetchReports,
+    createUser,
+    updateUser,
+    deleteUser,
     blockUser,
     deletePost,
     deleteComment,

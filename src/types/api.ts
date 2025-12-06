@@ -96,6 +96,7 @@ export interface Pet {
   age?: number;
   description?: string;
   photos: string[];
+  profilePicture?: string;
   owner: string | User;
   createdAt: string;
   updatedAt: string;
@@ -107,6 +108,8 @@ export interface CreatePetRequest {
   breed?: string;
   age?: number;
   description?: string;
+  profilePicture?: string;
+  photos?: string[];
 }
 
 export interface UpdatePetRequest {
@@ -115,6 +118,8 @@ export interface UpdatePetRequest {
   breed?: string;
   age?: number;
   description?: string;
+  profilePicture?: string;
+  photos?: string[];
 }
 
 // Post types

@@ -3,7 +3,7 @@
  * Form to create a new pet
  */
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { usePets } from '@/hooks/usePets';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,6 +23,31 @@ export const CreatePetForm = ({ onSuccess, onCancel }: CreatePetFormProps) => {
   const [breed, setBreed] = useState('');
   const [age, setAge] = useState<number | ''>('');
   const [description, setDescription] = useState('');
+  const [profilePicture, setProfilePicture] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>): void => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        if (result) {
+          setProfilePicture(result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = (): void => {
+    setProfilePicture('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -35,6 +60,7 @@ export const CreatePetForm = ({ onSuccess, onCancel }: CreatePetFormProps) => {
         breed: breed.trim() || undefined,
         age: age ? Number(age) : undefined,
         description: description.trim() || undefined,
+        profilePicture: profilePicture || undefined,
       });
       // Reset form
       setName('');
@@ -42,6 +68,10 @@ export const CreatePetForm = ({ onSuccess, onCancel }: CreatePetFormProps) => {
       setBreed('');
       setAge('');
       setDescription('');
+      setProfilePicture('');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
       onSuccess?.();
     } catch (err) {
       // Error ya es manejado por el hook
@@ -113,6 +143,36 @@ export const CreatePetForm = ({ onSuccess, onCancel }: CreatePetFormProps) => {
               placeholder="Cuéntanos sobre tu mascota..."
               rows={3}
             />
+          </div>
+
+          <div>
+            <Label htmlFor="profilePicture">Foto de Perfil (opcional)</Label>
+            <Input
+              id="profilePicture"
+              type="file"
+              accept="image/*"
+              ref={fileInputRef}
+              onChange={handleImageSelect}
+              className="mb-2"
+            />
+            {profilePicture && (
+              <div className="mt-2 relative inline-block">
+                <img
+                  src={profilePicture}
+                  alt="Vista previa"
+                  className="w-32 h-32 object-cover rounded-md border"
+                />
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={removeImage}
+                  className="absolute top-0 right-0 -mt-2 -mr-2"
+                >
+                  ×
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2">
